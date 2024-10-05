@@ -73,7 +73,7 @@ void deviceUpdated(DeviceWatcher sender, DeviceInformationUpdate deviceInfo)
 
 void enumComplete(DeviceWatcher sender, IInspectable args)
 {
-    std::wcout << "Enumeration Complet\n";
+    std::wcout << "Enumeration Complete\n";
 }
 
 /// <summary>
