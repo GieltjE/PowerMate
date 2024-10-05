@@ -1,4 +1,5 @@
 #include "pch.h"
+#include <mmdeviceapi.h>
 #include "VolumeController.h"
 
 // Pulled from:
@@ -6,24 +7,24 @@
 // A little fixing up and nudging around, but mostly whole hog a copy
 
 VolumeController::VolumeController():
-    endpointVolume(NULL)
+    endpointVolume(nullptr)
 {
     HRESULT hr = NULL;
 
-    CoInitializeEx(NULL, COINIT_MULTITHREADED);
-    IMMDeviceEnumerator* deviceEnumerator = NULL;
-    hr = CoCreateInstance(__uuidof(MMDeviceEnumerator), NULL, CLSCTX_INPROC_SERVER,
-        __uuidof(IMMDeviceEnumerator), (LPVOID*)&deviceEnumerator);
-    IMMDevice* defaultDevice = NULL;
+    CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+    IMMDeviceEnumerator* deviceEnumerator = nullptr;
+    hr = CoCreateInstance(__uuidof(MMDeviceEnumerator), nullptr, CLSCTX_INPROC_SERVER,
+        __uuidof(IMMDeviceEnumerator), reinterpret_cast<LPVOID*>(&deviceEnumerator));
+    IMMDevice* defaultDevice = nullptr;
 
     hr = deviceEnumerator->GetDefaultAudioEndpoint(eRender, eConsole, &defaultDevice);
     deviceEnumerator->Release();
-    deviceEnumerator = NULL;
+    deviceEnumerator = nullptr;
 
     hr = defaultDevice->Activate(__uuidof(IAudioEndpointVolume),
-        CLSCTX_INPROC_SERVER, NULL, (LPVOID*)&endpointVolume);
+        CLSCTX_INPROC_SERVER, nullptr, reinterpret_cast<LPVOID*>(&endpointVolume));
     defaultDevice->Release();
-    defaultDevice = NULL;
+    defaultDevice = nullptr;
 }
 
 VolumeController::~VolumeController()
@@ -33,51 +34,51 @@ VolumeController::~VolumeController()
     CoUninitialize();
 }
 
-void VolumeController::volumeUp()
+void VolumeController::volume_up() const
 {
-    endpointVolume->VolumeStepUp(NULL);
+    endpointVolume->VolumeStepUp(nullptr);
 }
 
-void VolumeController::volumeDown()
+void VolumeController::volume_down() const
 {
-    endpointVolume->VolumeStepDown(NULL);
+    endpointVolume->VolumeStepDown(nullptr);
 }
 
-void VolumeController::mute()
+void VolumeController::mute() const
 {
-    HRESULT hr{ NULL };
+    HRESULT hr { NULL };
 
     BOOL muteState{ false };
     hr = endpointVolume->GetMute(&muteState);
-    hr = endpointVolume->SetMute(!muteState, NULL);
+    hr = endpointVolume->SetMute(!muteState, nullptr);
 }
 
-double VolumeController::getVolume(const bool scalar)
+double VolumeController::get_volume(const bool scalar) const
 {
-    HRESULT hr{ NULL };
+    HRESULT hr { NULL };
 
-    float currentVolume{ 0 };
+    float current_volume { 0 };
     if(scalar)
     {
-        hr = endpointVolume->GetMasterVolumeLevelScalar(&currentVolume);
+        hr = endpointVolume->GetMasterVolumeLevelScalar(&current_volume);
     }
     else
     {
-        hr = endpointVolume->GetMasterVolumeLevel(&currentVolume);
+        hr = endpointVolume->GetMasterVolumeLevel(&current_volume);
     }
        
-    return currentVolume;
+    return current_volume;
 }
 
-void VolumeController::setVolume(const double value, const bool scalar)
+void VolumeController::set_volume(const double value, const bool scalar) const
 {
-    HRESULT hr{ NULL };
+    HRESULT hr { NULL };
     if (scalar)
     {
-        hr = endpointVolume->SetMasterVolumeLevelScalar((float)value, NULL);
+        hr = endpointVolume->SetMasterVolumeLevelScalar(static_cast<float>(value), nullptr);
     }
     else
     {
-        hr = endpointVolume->SetMasterVolumeLevel((float)value, NULL);
+        hr = endpointVolume->SetMasterVolumeLevel(static_cast<float>(value), nullptr);
     }
 }

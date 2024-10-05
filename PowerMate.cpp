@@ -8,7 +8,6 @@
 //Pull Requests Please!!
 
 #include "pch.h"
-
 #include "VolumeController.h"
 
 using namespace winrt;
@@ -19,7 +18,6 @@ using namespace Windows::Devices::Bluetooth;
 using namespace Windows::Web::Syndication;
 using namespace Windows::Devices::Bluetooth::GenericAttributeProfile;
 using namespace Windows::Storage::Streams;
-
 
 enum class STATE_MACHINE
 {
@@ -34,26 +32,24 @@ enum class STATE_MACHINE
     CHARACTERISTICS_FOUND
 };
 
-STATE_MACHINE myStatus{ STATE_MACHINE::INIT };
+static STATE_MACHINE myStatus { STATE_MACHINE::INIT };
 
-Windows::Devices::Enumeration::DeviceWatcher deviceWatcher{ nullptr };
-Windows::Devices::Bluetooth::BluetoothLEDevice bluetoothLeDevice{ nullptr };
+static DeviceWatcher deviceWatcher { nullptr };
+static BluetoothLEDevice bluetoothLeDevice { nullptr };
 
-event_token deviceWatcherAddedToken;
-event_token deviceWatcherUpdatedToken;
+static event_token deviceWatcherAddedToken;
+static event_token deviceWatcherUpdatedToken;
 //event_token deviceWatcherRemovedToken;
-event_token deviceWatcherEnumerationCompletedToken;
+static event_token deviceWatcherEnumerationCompletedToken;
 
-std::wstring powerMateDeviceId;
-
+static std::wstring powerMateDeviceId;
 std::map<GattDeviceService, std::set<GattCharacteristic>> powerMateServices;
+static std::wstring uuid_read { L"{9cf53570-ddd9-47f3-ba63-09acefc60415}" };
+static std::wstring uuid_led { L"847d189e-86ee-4bd2-966f-800832b1259d" };
 
-std::wstring uuid_read{ L"{9cf53570-ddd9-47f3-ba63-09acefc60415}" };
-std::wstring uuid_led{ L"847d189e-86ee-4bd2-966f-800832b1259d" };
+static VolumeController masterVolume;
 
-VolumeController masterVolume;
-
-void deviceAdded(DeviceWatcher sender, DeviceInformation deviceInfo)
+static void deviceAdded(DeviceWatcher sender, const DeviceInformation& deviceInfo)
 {
     std::wstring desiredDevice{ L"PowerMate Bluetooth" };
     std::wstring deviceName{ deviceInfo.Name().c_str() };
@@ -68,12 +64,12 @@ void deviceAdded(DeviceWatcher sender, DeviceInformation deviceInfo)
     }
 }
 
-void deviceUpdated(DeviceWatcher sender, DeviceInformationUpdate deviceInfo)
+static void deviceUpdated(DeviceWatcher sender, DeviceInformationUpdate deviceInfo)
 {
     //std::wcout << "Updated\n" << deviceInfo.Id().c_str() << "\n";
 }
 
-void enumComplete(DeviceWatcher sender, IInspectable args)
+static void enumComplete(DeviceWatcher sender, IInspectable args)
 {
     std::wcout << "Enumeration Complete\n";
 }
@@ -82,7 +78,7 @@ void enumComplete(DeviceWatcher sender, IInspectable args)
 /// Starts a device watcher that looks for all nearby Bluetooth devices (paired or unpaired). 
 /// Attaches event handlers to populate the device collection.
 /// </summary>
-void StartBleDeviceWatcher()
+static void StartBleDeviceWatcher()
 {
     // Additional properties we would like about the device.
     // Property strings are documented here https://msdn.microsoft.com/en-us/library/windows/desktop/ff521659(v=vs.85).aspx
@@ -92,7 +88,7 @@ void StartBleDeviceWatcher()
     hstring aqsAllBluetoothLEDevices = L"(System.Devices.Aep.ProtocolId:=\"{bb7bb05e-5972-42b5-94fc-76eaa7084d49}\")";
 
     deviceWatcher =
-        Windows::Devices::Enumeration::DeviceInformation::CreateWatcher(
+        DeviceInformation::CreateWatcher(
             aqsAllBluetoothLEDevices,
             requestedProperties,
             DeviceInformationKind::AssociationEndpoint);
@@ -121,7 +117,7 @@ void StartBleDeviceWatcher()
 /// <summary>
 /// Stops watching for all nearby Bluetooth devices.
 /// </summary>
-void StopBleDeviceWatcher()
+static void StopBleDeviceWatcher()
 {
     if (deviceWatcher != nullptr)
     {
@@ -138,7 +134,7 @@ void StopBleDeviceWatcher()
     }
 }
 
-fire_and_forget selectDevice(std::wstring deviceId)
+static fire_and_forget selectDevice(std::wstring deviceId)
 {
     try
     {
@@ -166,8 +162,6 @@ fire_and_forget selectDevice(std::wstring deviceId)
             throw;
         }
     }
-
-
 }
 
 /// <summary>
@@ -175,7 +169,7 @@ fire_and_forget selectDevice(std::wstring deviceId)
 ///  If so, extracts the assigned number.
 /// </summary>
 
-bool TryParseSigDefinedUuid(guid const& uuid, uint16_t& shortId)
+static bool TryParseSigDefinedUuid(guid const& uuid, uint16_t& shortId)
 {
     // UUIDs defined by the Bluetooth SIG are of the form
     // 0000xxxx-0000-1000-8000-00805F9B34FB.
@@ -187,7 +181,7 @@ bool TryParseSigDefinedUuid(guid const& uuid, uint16_t& shortId)
     return possibleBluetoothGuid == BluetoothGuid;
 }
 
-std::wstring GetServiceName(GattDeviceService const& service)
+static std::wstring GetServiceName(GattDeviceService const& service)
 {
     uint16_t shortId;
 
@@ -229,7 +223,7 @@ std::wstring GetServiceName(GattDeviceService const& service)
     return L"Custom service: " + std::wstring(to_hstring(uuid));
 }
 
-fire_and_forget getServices()
+static fire_and_forget getServices()
 {
     // Note: BluetoothLEDevice.GattServices property will return an empty list for unpaired devices. For all uses we recommend using the GetGattServicesAsync method.
     // BT_Code: GetGattServicesAsync returns a list of all the supported services of the device (even if it's not paired to the system).
@@ -254,8 +248,7 @@ fire_and_forget getServices()
     }
 }
 
-
-std::wstring GetCharacteristicName(GattCharacteristic const& characteristic)
+static std::wstring GetCharacteristicName(GattCharacteristic const& characteristic)
 {
     uint16_t shortId;
 
@@ -385,14 +378,14 @@ std::wstring GetCharacteristicName(GattCharacteristic const& characteristic)
     return L"Custom Characteristic: " + std::wstring{ to_hstring(uuid) };
 }
 
-hstring to_hstring(GattCommunicationStatus status)
+static hstring to_hstring(GattCommunicationStatus status)
 {
     switch (status)
     {
-    case GattCommunicationStatus::Success: return L"Success";
-    case GattCommunicationStatus::Unreachable: return L"Unreachable";
-    case GattCommunicationStatus::ProtocolError: return L"ProtocolError";
-    case GattCommunicationStatus::AccessDenied: return L"AccessDenied";
+	    case GattCommunicationStatus::Success: return L"Success";
+	    case GattCommunicationStatus::Unreachable: return L"Unreachable";
+	    case GattCommunicationStatus::ProtocolError: return L"ProtocolError";
+	    case GattCommunicationStatus::AccessDenied: return L"AccessDenied";
     }
     return to_hstring(static_cast<int>(status));
 }
@@ -413,42 +406,42 @@ enum class POWERMATE_ACTIONS : uint8_t
     HOLD_6 = 0x77
 };
 
-void actOnPowerMate(const uint8_t value)
+static auto actOnPowerMate(const uint8_t value)
 {
     switch (static_cast<POWERMATE_ACTIONS>(value))
     {
-    case(POWERMATE_ACTIONS::PRESS):
-        masterVolume.mute();
-        break;
-    case(POWERMATE_ACTIONS::LONG_RELEASE):
-        break;
-    case(POWERMATE_ACTIONS::LEFT):
-        masterVolume.volumeDown();
-        break;
-    case(POWERMATE_ACTIONS::RIGHT):
-        masterVolume.volumeUp();
-        break;
-    case(POWERMATE_ACTIONS::PRESSED_LEFT):
-        break;
-    case(POWERMATE_ACTIONS::PRESSED_RIGHT):
-        break;
-    case(POWERMATE_ACTIONS::HOLD_1):
-        break;
-    case(POWERMATE_ACTIONS::HOLD_2):
-        break;
-    case(POWERMATE_ACTIONS::HOLD_3):
-        break;
-    case(POWERMATE_ACTIONS::HOLD_4):
-        break;
-    case(POWERMATE_ACTIONS::HOLD_5):
-        break;
-    case(POWERMATE_ACTIONS::HOLD_6):
-        break;
-    default:
-        std::cerr << "UNKNOWN PowerMate Action" << std::hex << value << "\n";
+	    case POWERMATE_ACTIONS::PRESS:
+	        masterVolume.mute();
+	        break;
+	    case POWERMATE_ACTIONS::LONG_RELEASE:
+	        break;
+	    case POWERMATE_ACTIONS::LEFT:
+	        masterVolume.volume_down();
+	        break;
+	    case POWERMATE_ACTIONS::RIGHT:
+	        masterVolume.volume_up();
+	        break;
+	    case POWERMATE_ACTIONS::PRESSED_LEFT:
+	        break;
+	    case POWERMATE_ACTIONS::PRESSED_RIGHT:
+	        break;
+	    case POWERMATE_ACTIONS::HOLD_1:
+	        break;
+	    case POWERMATE_ACTIONS::HOLD_2:
+	        break;
+	    case POWERMATE_ACTIONS::HOLD_3:
+	        break;
+	    case POWERMATE_ACTIONS::HOLD_4:
+	        break;
+	    case POWERMATE_ACTIONS::HOLD_5:
+	        break;
+	    case POWERMATE_ACTIONS::HOLD_6:
+	        break;
+	    default:
+	        std::cerr << "UNKNOWN PowerMate Action" << std::hex << value << "\n";
     }    
 }
-void Characteristic_ValueChanged(GattCharacteristic const& c, GattValueChangedEventArgs args)
+static void Characteristic_ValueChanged(GattCharacteristic const& c, GattValueChangedEventArgs args)
 {
     // BT_Code: An Indicate or Notify reported that the value has changed.
     // Display the new value with a timestamp.
@@ -460,14 +453,14 @@ void Characteristic_ValueChanged(GattCharacteristic const& c, GattValueChangedEv
     actOnPowerMate(value);
 }
 
-void AddValueChangedHandler(GattCharacteristic c)
+static void AddValueChangedHandler(GattCharacteristic c)
 {
     c.ValueChanged(Characteristic_ValueChanged);
 }
 
-fire_and_forget subscribeToValueChange(GattCharacteristic c)
+static fire_and_forget subscribeToValueChange(GattCharacteristic c)
 {
-    GattClientCharacteristicConfigurationDescriptorValue cccdValue = GattClientCharacteristicConfigurationDescriptorValue::None;
+    GattClientCharacteristicConfigurationDescriptorValue cccdValue;
     if ((c.CharacteristicProperties() & GattCharacteristicProperties::Indicate) != GattCharacteristicProperties::None)
     {
         cccdValue = GattClientCharacteristicConfigurationDescriptorValue::Indicate;
@@ -505,7 +498,7 @@ fire_and_forget subscribeToValueChange(GattCharacteristic c)
     }
 }
 
-fire_and_forget readCharacteristic(GattCharacteristic c)
+static fire_and_forget readCharacteristic(GattCharacteristic c)
 {
     // BT_Code: Read the actual value from the device by using Uncached.
     GattReadResult result = co_await c.ReadValueAsync(BluetoothCacheMode::Uncached);
@@ -521,12 +514,12 @@ fire_and_forget readCharacteristic(GattCharacteristic c)
     }
 }
 
-int uuid_equal(std::wstring left, guid right)
+static int uuid_equal(std::wstring left, guid right)
 {
-    return (std::wstring(to_hstring(right)).compare(left) == 0);
+    return std::wstring(to_hstring(right)).compare(left) == 0;
 }
 
-fire_and_forget getCharacteristics(GattDeviceService service)
+static fire_and_forget getCharacteristics(GattDeviceService service)
 {
     IVectorView<GattCharacteristic> characteristics{ nullptr };
     try
@@ -582,11 +575,10 @@ fire_and_forget getCharacteristics(GattDeviceService service)
     }
 }
 
-
 int main()
 {
     StartBleDeviceWatcher();
-    bool waiting{ true };
+    bool waiting { true };
     std::cout << "0 <ENTER> to stop/quit\n";
     
     while (waiting)
@@ -595,38 +587,38 @@ int main()
 
         switch (myStatus)
         {
-        case(STATE_MACHINE::INIT):
-            break;
-        case(STATE_MACHINE::DEVICE_SEARCHING):
-            break;
-        case(STATE_MACHINE::DEVICE_FOUND):
-            myStatus = STATE_MACHINE::DEVICE_SELECTING;
-            selectDevice(powerMateDeviceId);
-            break;
-        case(STATE_MACHINE::DEVICE_SELECTING):
-            break;
-        case(STATE_MACHINE::DEVICE_SELECTED):
-            if (bluetoothLeDevice != nullptr)
-            {
-                myStatus = STATE_MACHINE::SERVICE_SEARCHING;
-                getServices();
-            }
-            break;
-        case(STATE_MACHINE::SERVICE_SEARCHING):
-            break;
-        case(STATE_MACHINE::SERVICE_FOUND):
-            for (auto&& service : powerMateServices)
-            {
-                getCharacteristics(service.first);
-            }
-            break;
-        case(STATE_MACHINE::CHARACTERISTICS_SEARCHING):
-            break;
-        case(STATE_MACHINE::CHARACTERISTICS_FOUND):
-            //waiting = false;
-            break;
-        default:
-            std::cerr << "Unknown State" << "\n;";
+	        case STATE_MACHINE::INIT:
+	            break;
+	        case STATE_MACHINE::DEVICE_SEARCHING:
+	            break;
+	        case STATE_MACHINE::DEVICE_FOUND:
+	            myStatus = STATE_MACHINE::DEVICE_SELECTING;
+	            selectDevice(powerMateDeviceId);
+	            break;
+	        case STATE_MACHINE::DEVICE_SELECTING:
+	            break;
+	        case STATE_MACHINE::DEVICE_SELECTED:
+	            if (bluetoothLeDevice != nullptr)
+	            {
+	                myStatus = STATE_MACHINE::SERVICE_SEARCHING;
+	                getServices();
+	            }
+	            break;
+	        case STATE_MACHINE::SERVICE_SEARCHING:
+	            break;
+	        case STATE_MACHINE::SERVICE_FOUND:
+	            for (auto&& service : powerMateServices)
+	            {
+	                getCharacteristics(service.first);
+	            }
+	            break;
+	        case STATE_MACHINE::CHARACTERISTICS_SEARCHING:
+	            break;
+	        case STATE_MACHINE::CHARACTERISTICS_FOUND:
+	            //waiting = false;
+	            break;
+	        default:
+	            std::cerr << "Unknown State" << "\n;";
         }        
     }
     StopBleDeviceWatcher();
