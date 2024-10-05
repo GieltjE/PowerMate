@@ -58,9 +58,11 @@ void deviceAdded(DeviceWatcher sender, DeviceInformation deviceInfo)
     std::wstring desiredDevice{ L"PowerMate Bluetooth" };
     std::wstring deviceName{ deviceInfo.Name().c_str() };
     std::wstring deviceId{ deviceInfo.Id().c_str() };
-    std::wcout << "Added\n" << deviceId << ": " << deviceName << "\n";
+    
     if (deviceName.compare(desiredDevice) == 0)
     {
+        std::wcout << "Added\n" << deviceId << ": " << deviceName << "\n";
+
         powerMateDeviceId = deviceId;
         myStatus = STATE_MACHINE::DEVICE_FOUND;
     }
@@ -68,7 +70,7 @@ void deviceAdded(DeviceWatcher sender, DeviceInformation deviceInfo)
 
 void deviceUpdated(DeviceWatcher sender, DeviceInformationUpdate deviceInfo)
 {
-    std::wcout << "Updated\n" << deviceInfo.Id().c_str() << "\n";
+    //std::wcout << "Updated\n" << deviceInfo.Id().c_str() << "\n";
 }
 
 void enumComplete(DeviceWatcher sender, IInspectable args)
