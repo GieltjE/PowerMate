@@ -589,6 +589,8 @@ int main()
     
     while (waiting)
     {
+        Sleep(50);
+
         switch (myStatus)
         {
         case(STATE_MACHINE::INIT):
